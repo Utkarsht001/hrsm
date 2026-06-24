@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, PropsWithChildren, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { createContext, PropsWithChildren, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useDispatch } from "react-redux";
 import { useRouter, usePathname } from "next/navigation";
 import { api, setToken, clearToken, getToken } from "../lib/api";
@@ -50,6 +50,8 @@ export function SessionProvider({ children }: PropsWithChildren) {
       setUser(me);
       dispatch(setCredentials({ user: me }));
     } catch {
+      // Stale/invalid token — fall back to unauthenticated state silently;
+      // the next route guard run will redirect to /login.
       clearToken();
       setUser(null);
       dispatch(clearCredentials());
@@ -58,16 +60,17 @@ export function SessionProvider({ children }: PropsWithChildren) {
 
   // One-time bootstrap: hydrate session + load demo creds for the role switcher.
   useEffect(() => {
-    let cancelled = false;
+    const aborted = { value: false };
     (async () => {
       const [, demos] = await Promise.allSettled([
         fetchMe(),
         api.get<DemoCred[]>("/api/auth/demo-users"),
       ]);
-      if (!cancelled && demos.status === "fulfilled") demoCredsRef.current = demos.value;
-      if (!cancelled) setLoading(false);
+      if (aborted.value) return;
+      if (demos.status === "fulfilled") demoCredsRef.current = demos.value;
+      setLoading(false);
     })();
-    return () => { cancelled = true; };
+    return () => { aborted.value = true; };
   }, [fetchMe]);
 
   const login = useCallback(async ({ email, password }: { email: string; password: string }) => {
@@ -78,7 +81,13 @@ export function SessionProvider({ children }: PropsWithChildren) {
   }, [dispatch]);
 
   const logout = useCallback(async () => {
-    try { await api.post("/api/auth/logout"); } catch { /* best-effort: cookie/session cleanup */ }
+    try {
+      await api.post("/api/auth/logout");
+    } catch (err) {
+      // Server-side cookie cleanup is best-effort. Surface it for observability,
+      // but still proceed with local sign-out so the user isn't trapped.
+      console.warn("[auth] logout endpoint failed, continuing client-side cleanup:", err);
+    }
     clearToken();
     setUser(null);
     dispatch(clearCredentials());
@@ -104,11 +113,13 @@ export function SessionProvider({ children }: PropsWithChildren) {
     }
   }, [user, loading, pathname, router]);
 
-  return (
-    <SessionContext.Provider value={{ user, loading, login, logout, switchRole, refresh: fetchMe }}>
-      {children}
-    </SessionContext.Provider>
-  );
+  // Memoize the context value so consumers don't re-render every time
+  // SessionProvider itself re-renders.
+  const value = useMemo<SessionContextValue>(() => ({
+    user, loading, login, logout, switchRole, refresh: fetchMe,
+  }), [user, loading, login, logout, switchRole, fetchMe]);
+
+  return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }
 
 export function useSession() {

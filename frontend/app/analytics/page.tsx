@@ -54,11 +54,11 @@ export default function AnalyticsPage() {
 
           <SectionTitle title="By department" />
           <div className="card p-4 mb-4">
-            {hr.by_department.map((d: any, i: number) => {
+            {hr.by_department.map((d: any) => {
               const max = Math.max(...hr.by_department.map((x: any) => x.count));
               const pct = max ? (d.count / max) * 100 : 0;
               return (
-                <div key={i} className="mb-2 last:mb-0">
+                <div key={d.name} className="mb-2 last:mb-0">
                   <div className="flex justify-between text-xs mb-1">
                     <span className="font-medium">{d.name}</span>
                     <span className="font-bold">{d.count}</span>

@@ -52,10 +52,15 @@ export default function AnnouncementsPage() {
       />
       {list.length === 0 ? <Empty title="No announcements" /> : (
         <div className="space-y-2">
-          {list.map(a => (
+          {list.map(a => {
+            const priorityCls =
+              a.priority === "high" ? "badge-danger"
+              : a.priority === "medium" ? "badge-orange"
+              : "badge-slate";
+            return (
             <div key={a.id} className="card p-4" data-testid={`ann-${a.id}`}>
               <div className="flex items-center justify-between mb-1.5">
-                <span className={`badge ${a.priority === "high" ? "badge-danger" : a.priority === "medium" ? "badge-orange" : "badge-slate"} text-[10px] capitalize`}>{a.priority}</span>
+                <span className={`badge ${priorityCls} text-[10px] capitalize`}>{a.priority}</span>
                 <span className="badge badge-teal text-[10px] capitalize">{a.category.replace("-", " ")}</span>
               </div>
               <div className="text-sm font-bold mb-1">{a.title}</div>
@@ -73,7 +78,8 @@ export default function AnnouncementsPage() {
                 <button data-testid={`ack-${a.id}-btn`} onClick={() => acknowledge(a.id)} className="btn btn-primary py-1 text-xs w-full justify-center mt-2"><Check size={12} /> Acknowledge</button>
               )}
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
