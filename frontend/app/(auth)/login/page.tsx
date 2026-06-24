@@ -105,7 +105,7 @@ export default function LoginPage() {
               {demoUsers.map((u, i) => (
                 <button
                   key={u.email}
-                  data-testid={`demo-login-${u.role}-btn`}
+                  data-testid={u.email.startsWith("alex") ? "demo-login-onboarding-btn" : `demo-login-${u.role}-btn`}
                   onClick={() => fillDemo(u)}
                   className="w-full text-left p-2.5 rounded-lg bg-surface-2 hover:bg-[color:var(--teal-50)] transition border border-transparent hover:border-[color:var(--teal-500)]/30 flex items-center justify-between"
                 >
