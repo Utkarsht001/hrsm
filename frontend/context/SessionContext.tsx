@@ -3,7 +3,7 @@
 import { createContext, PropsWithChildren, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useDispatch } from "react-redux";
 import { useRouter, usePathname } from "next/navigation";
-import { api, setToken, clearToken, getToken } from "../lib/api";
+import { api } from "../lib/api";
 import { setCredentials, clearCredentials } from "../store/authSlice";
 
 export type AuthUser = {
@@ -33,6 +33,8 @@ export type SessionContextValue = {
 
 const SessionContext = createContext<SessionContextValue | undefined>(undefined);
 
+const IS_DEV = process.env.NODE_ENV !== "production";
+
 export function SessionProvider({ children }: PropsWithChildren) {
   const dispatch = useDispatch();
   const router = useRouter();
@@ -43,16 +45,13 @@ export function SessionProvider({ children }: PropsWithChildren) {
   const demoCredsRef = useRef<DemoCred[]>([]);
 
   const fetchMe = useCallback(async () => {
-    const tok = getToken();
-    if (!tok) { setUser(null); return; }
     try {
+      // Auth cookie is sent automatically by the browser; 401 means no session.
       const me = await api.get<AuthUser>("/api/auth/me");
       setUser(me);
       dispatch(setCredentials({ user: me }));
     } catch {
-      // Stale/invalid token — fall back to unauthenticated state silently;
-      // the next route guard run will redirect to /login.
-      clearToken();
+      // No active session — fall through to unauthenticated state.
       setUser(null);
       dispatch(clearCredentials());
     }
@@ -74,8 +73,8 @@ export function SessionProvider({ children }: PropsWithChildren) {
   }, [fetchMe]);
 
   const login = useCallback(async ({ email, password }: { email: string; password: string }) => {
-    const res = await api.post<{ accessToken: string; user: AuthUser }>("/api/auth/login", { email, password });
-    setToken(res.accessToken);
+    const res = await api.post<{ user: AuthUser }>("/api/auth/login", { email, password });
+    // No client-side token handling — the httpOnly cookie is set by the server.
     setUser(res.user);
     dispatch(setCredentials({ user: res.user }));
   }, [dispatch]);
@@ -84,11 +83,13 @@ export function SessionProvider({ children }: PropsWithChildren) {
     try {
       await api.post("/api/auth/logout");
     } catch (err) {
-      // Server-side cookie cleanup is best-effort. Surface it for observability,
-      // but still proceed with local sign-out so the user isn't trapped.
-      console.warn("[auth] logout endpoint failed, continuing client-side cleanup:", err);
+      // Server-side cookie cleanup is best-effort. Surface it in dev only;
+      // local sign-out always proceeds so the user isn't trapped.
+      if (IS_DEV) {
+        // eslint-disable-next-line no-console
+        console.warn("[auth] logout endpoint failed, continuing client-side cleanup:", err);
+      }
     }
-    clearToken();
     setUser(null);
     dispatch(clearCredentials());
     router.replace("/login");

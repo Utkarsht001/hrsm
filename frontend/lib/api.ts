@@ -1,39 +1,22 @@
 const RAW = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "";
 export const BACKEND_URL = RAW.replace(/\/$/, "");
 
-// Token storage strategy:
-// Primary auth: httpOnly cookie set by backend on /api/auth/login (XSS-safe,
-// browser sends automatically on same-origin requests).
-// Fallback: short-lived Bearer token in localStorage — only consulted when the
-// cookie isn't present (e.g., legacy clients, cross-origin previews). The
-// session module still calls /api/auth/me on bootstrap so a stale localStorage
-// value is rejected server-side, not trusted.
-const TOKEN_KEY = "wf_token";
-
-export function getToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return window.localStorage.getItem(TOKEN_KEY);
-}
-export function setToken(t: string) {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(TOKEN_KEY, t);
-}
-export function clearToken() {
-  if (typeof window === "undefined") return;
-  window.localStorage.removeItem(TOKEN_KEY);
-}
+// Auth is exclusively httpOnly cookie based.
+// • Backend `/api/auth/login` (and `/register`) sets `access_token` with
+//   `HttpOnly; Secure; SameSite=lax` — JavaScript cannot read it (XSS-safe).
+// • The browser auto-sends the cookie on same-origin requests; we add
+//   `credentials: 'include'` so it also rides on any cross-origin call.
+// • No tokens are stored in localStorage / sessionStorage anymore.
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const token = getToken();
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     ...((init.headers as Record<string, string>) || {}),
   };
-  if (token) headers["Authorization"] = `Bearer ${token}`;
   const res = await fetch(`${BACKEND_URL}${path}`, {
     ...init,
     headers,
-    credentials: "include", // send httpOnly auth cookie on same-origin
+    credentials: "include",
   });
   const text = await res.text();
   const data = text ? safeJson(text) : null;
