@@ -1,0 +1,11 @@
+/app/dotnet/HRMS.Domain/bin/Release/net10.0/HRMS.Domain.deps.json
+/app/dotnet/HRMS.Domain/bin/Release/net10.0/HRMS.Domain.dll
+/app/dotnet/HRMS.Domain/bin/Release/net10.0/HRMS.Domain.pdb
+/app/dotnet/HRMS.Domain/obj/Release/net10.0/HRMS.Domain.GeneratedMSBuildEditorConfig.editorconfig
+/app/dotnet/HRMS.Domain/obj/Release/net10.0/HRMS.Domain.AssemblyInfoInputs.cache
+/app/dotnet/HRMS.Domain/obj/Release/net10.0/HRMS.Domain.AssemblyInfo.cs
+/app/dotnet/HRMS.Domain/obj/Release/net10.0/HRMS.Domain.csproj.CoreCompileInputs.cache
+/app/dotnet/HRMS.Domain/obj/Release/net10.0/HRMS.Domain.dll
+/app/dotnet/HRMS.Domain/obj/Release/net10.0/refint/HRMS.Domain.dll
+/app/dotnet/HRMS.Domain/obj/Release/net10.0/HRMS.Domain.pdb
+/app/dotnet/HRMS.Domain/obj/Release/net10.0/ref/HRMS.Domain.dll

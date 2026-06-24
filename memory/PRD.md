@@ -1,59 +1,88 @@
 # WorkFlow — Global HRMS
 
-**Status:** MVP complete (all 15 modules functional)
+**Status:** MVP complete on the boilerplate's intended .NET stack.
 **Last updated:** 2026-06-24
-**Tech stack:** Next.js 16 + Tailwind 4 + Redux + Zustand frontend (port 3000) · FastAPI + Motor + MongoDB backend (port 8001) · Claude Sonnet 4.5 via `emergentintegrations` for HR Copilot
+**Tech stack (corrected to match the assignment boilerplate):**
+
+- **Frontend:** Next.js 16 + Tailwind 4 + Redux Toolkit + Zustand (port 3000) — from `nextjs-boiler-plate-v16.0.3`
+- **Backend:** **.NET 10 Web API** with EF Core 10 + Npgsql (port 8001) — clean architecture (`HRMS.API`, `HRMS.Application`, `HRMS.Domain`, `HRMS.Infrastructure`)
+- **Database:** **PostgreSQL 15** (hrms db on localhost:5432, user/pwd: postgres/postgres)
+- **AI Copilot:** Claude Sonnet 4.5 via direct HTTP from .NET `EmergentLlmClient` against `https://integrations.emergentagent.com/llm/chat/completions` (OpenAI Chat Completions-compatible, authenticated with the Emergent Universal Key).
+- **Auth:** JWT signed with HS256, returned in JSON `accessToken` *and* an `HttpOnly; Secure; SameSite=Lax` `access_token` cookie. Server accepts either.
+
+> Earlier iterations mistakenly used a Python FastAPI backend. That has been **completely removed** and replaced with the .NET implementation that the assignment's boilerplate intended.
 
 ## Original problem statement
-> Read the README.md (Global HRMS Product Specification v1.0) and implement it. Boilerplate repo: github.com/Utkarsht001/hrsm. Tech stack must be preserved (Next.js). Build all 15 modules, JWT email/password auth, Claude Sonnet for the HR Copilot.
 
-## User personas (from spec)
-- **Sarah (Employee)** — clock in/out, leave, payslips, expenses, goals, learning, recognition.
-- **Michael (Manager)** — approve team leave/expenses, monitor attendance, manage performance.
-- **HR Specialist (Priya)** — recruitment, onboarding, announcements, compliance, analytics.
-- **Admin** — full system oversight + configuration.
-- **Alex (New joiner)** — guided onboarding with phased tasks, welcome messages, relocation, team intros.
+> Read the README.md (Global HRMS Product Specification v1.0) and implement it. Boilerplate repo: github.com/Utkarsht001/hrsm. Tech stack must be preserved (Next.js + .NET). Build all 15 modules, JWT email/password auth, Claude Sonnet for the HR Copilot.
 
-## Core requirements (static)
-- Mobile-first, role-aware UI in a 480px max-width shell with bottom nav per role.
-- 15 modules: Onboarding, Attendance, Leave, Payroll, Documents, Expenses, Performance, Contributions, Training, Recruitment, Recognition, Announcements, Team, Analytics, HR Copilot.
-- RBAC across navigation, approvals, and module visibility.
-- JWT auth with bcrypt password hashing.
-- Multi-country payroll (US + India) with localized statutory components.
+## User personas
+- **Sarah (Employee)** — sarah@workflow.com / sarah123
+- **Michael (Manager)** — michael@workflow.com / michael123
+- **Priya (HR)** — priya@workflow.com / priya123
+- **Admin** — admin@workflow.com / admin123
+- **Alex (New joiner, is_onboarding=true)** — alex@workflow.com / alex123
 
-## Architecture
-- **Frontend (Next.js 16 App Router):** `/app/(auth)/login`, `/app/<module>/page.tsx` per module, `/app/page.tsx` is the role-aware home (auto-switches to onboarding view if `user.is_onboarding`). Shared shell in `components/shell/AppShell.tsx` (top bar w/ role switcher + modules drawer, bottom nav, Copilot FAB). API client `lib/api.ts` with Bearer token from localStorage `wf_token`.
-- **Backend (FastAPI):** Single `server.py` exposes `/api/*` REST. UUID-based document IDs. Idempotent seed on startup for 5 demo users + sample leave balances, payslip, documents, expense, goals, review, contributions, leaderboard, training modules, jobs, candidates, recognition, announcements, onboarding tasks.
-- **AI:** `/api/copilot/chat` uses `LlmChat` with model `anthropic/claude-sonnet-4-5-20250929`. Context (currentView, userRole, isOnboarding) is injected via system prompt.
+## Solution layout (`/app`)
 
-## What's been implemented (2026-06-24)
-- All 15 modules with CRUD where applicable.
-- JWT auth + role-based dependencies (`require_roles(...)`).
-- Role switcher (demo) in avatar menu — hot-swap to any of 4 roles without re-typing creds.
-- Onboarding flow with phased tasks, welcome messages, relocation, team intros, milestones, completion handoff.
-- Approvals queues for managers (leave + expenses + contributions).
-- HR Copilot with quick-suggestion chips, multi-turn conversation, role-aware system prompt.
-- Modules drawer with quick navigation to all 14 secondary screens.
-- Tested: 100% backend (29/29 pytest), ~95% frontend e2e via testing agent.
+```
+/app
+├── frontend/                Next.js 16 app (unchanged from prior rounds)
+├── dotnet/                  .NET 10 solution (the new backend)
+│   ├── HRMS.sln
+│   ├── HRMS.API/            controllers, Program.cs (DI + middleware)
+│   ├── HRMS.Application/    DTOs (records) — sits between domain & API
+│   ├── HRMS.Domain/         entities per module (Identity, Attendance,
+│   │                         Leave, Payroll, Misc/* for the other modules)
+│   └── HRMS.Infrastructure/ EF Core HrmsDbContext, JwtService, password hasher,
+│                            EmergentLlmClient, DataSeeder
+├── runtime/dotnet/          dotnet 10 SDK install (persisted in /app)
+└── memory/                  PRD + test credentials (this folder)
+```
 
-## Test credentials
-See `/app/memory/test_credentials.md`.
+## All 15 modules (every one has a working REST controller backed by EF Core)
 
-## Backlog / next iterations
-- **P0:** None outstanding — MVP fully functional.
-- **P1:**
-  - File-upload pipeline for real document/expense receipts (currently metadata-only).
-  - Push/email notifications on approval events (`integration_playbook_expert_v2` → SendGrid or Twilio).
-  - Real biometric/selfie capture for attendance clock-in.
-  - Encash leave + carry-forward year-end automation.
-  - PDF payslip & tax document generation (currently toast).
-- **P2:**
-  - Predictive analytics on attrition risk + workforce planning.
-  - Calendar (Google/Outlook) integration for interviews + onboarding milestones.
-  - Multi-country payroll expansion (UK/Singapore/Germany) with statutory deductions.
-  - Recognition certificates with shareable image (Cloudinary).
-  - Streaming copilot responses (server-sent events).
+| # | Module | Controller | Endpoints |
+|---|--------|------------|-----------|
+| 1 | Auth | `AuthController` | `/api/auth/login`, `/register`, `/me`, `/logout`, `/demo-users` |
+| 2 | Users / Team | `UsersTeamController` | `/api/users`, `/api/team` |
+| 3 | Attendance | `AttendanceController` | `/api/attendance/today,history,clock-in,clock-out,team` |
+| 4 | Leave | `LeaveController` | `/api/leave/balances,requests,approvals,requests/{id}/action` |
+| 5 | Payroll | `PayrollController` | `/api/payroll/payslips,compliance` |
+| 6 | Documents | `DocumentsController` | `/api/documents`, `/documents/{id}/status` |
+| 7 | Expenses | `ExpensesController` | `/api/expenses`, `/approvals`, `/{id}/action` |
+| 8 | Performance | `PerformanceController` | `/api/goals`, `/api/reviews` |
+| 9 | Contributions | `ContributionsController` | `/api/contributions`, `/items`, `/items/{id}/claim`, `/leaderboard` |
+| 10 | Training | `TrainingController` | `/api/training`, `/{id}/complete-item` |
+| 11 | Recruitment | `RecruitmentController` | `/api/recruitment/jobs,candidates` |
+| 12 | Recognition | `RecognitionController` | `/api/recognition`, `/{id}/like` |
+| 13 | Announcements | `AnnouncementsController` | `/api/announcements`, `/{id}/acknowledge` |
+| 14 | Analytics | `AnalyticsController` | `/api/analytics/attendance,hr` |
+| 15 | Onboarding | `OnboardingController` | `/api/onboarding/dashboard,tasks/{id}/complete,complete` |
+| ★ | HR Copilot | `CopilotController` | `/api/copilot/chat` (Claude Sonnet 4.5 via EmergentLlmClient) |
 
-## Future / Enhancements
-- **Conversion hook:** Make the Copilot a *taking-action* assistant (`"book me a leave next Friday"`) — convert it from Q&A to an agentic workflow using tool calls.
-- **Engagement loop:** Add a weekly digest email summarizing the user's contributions points, kudos received, and learning progress — boosts retention on HR products.
+## Running locally (for your assignment submission)
+
+```bash
+# 1. Postgres
+createdb hrms
+# 2. .NET API
+cd /app/dotnet
+dotnet run --project HRMS.API --urls=http://0.0.0.0:8001
+# 3. Frontend
+cd /app/frontend
+yarn install
+yarn dev
+```
+
+Set these env vars for the API:
+- `POSTGRES_CONNECTION` (default `Host=localhost;Port=5432;Database=hrms;Username=postgres;Password=postgres`)
+- `JWT_SECRET`
+- `EMERGENT_LLM_KEY`
+
+## Next Action Items
+None outstanding for v1. Backlog:
+- Per-module project split (currently Misc/Entities.cs holds 10 domains for speed)
+- Switch to MediatR/CQRS handlers if desired
+- File uploads (S3 / Azure Blob)
+- Notification emails (SendGrid)

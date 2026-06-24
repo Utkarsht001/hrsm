@@ -1,0 +1,31 @@
+{
+  "version": 2,
+  "dgSpecHash": "loLy2o+jrlo=",
+  "success": true,
+  "projectFilePath": "/app/dotnet/HRMS.Infrastructure/HRMS.Infrastructure.csproj",
+  "expectedPackageFiles": [
+    "/root/.nuget/packages/bcrypt.net-next/4.2.0/bcrypt.net-next.4.2.0.nupkg.sha512",
+    "/root/.nuget/packages/microsoft.bcl.cryptography/10.0.2/microsoft.bcl.cryptography.10.0.2.nupkg.sha512",
+    "/root/.nuget/packages/microsoft.entityframeworkcore/10.0.4/microsoft.entityframeworkcore.10.0.4.nupkg.sha512",
+    "/root/.nuget/packages/microsoft.entityframeworkcore.abstractions/10.0.4/microsoft.entityframeworkcore.abstractions.10.0.4.nupkg.sha512",
+    "/root/.nuget/packages/microsoft.entityframeworkcore.analyzers/10.0.4/microsoft.entityframeworkcore.analyzers.10.0.4.nupkg.sha512",
+    "/root/.nuget/packages/microsoft.entityframeworkcore.relational/10.0.4/microsoft.entityframeworkcore.relational.10.0.4.nupkg.sha512",
+    "/root/.nuget/packages/microsoft.extensions.caching.abstractions/10.0.4/microsoft.extensions.caching.abstractions.10.0.4.nupkg.sha512",
+    "/root/.nuget/packages/microsoft.extensions.caching.memory/10.0.4/microsoft.extensions.caching.memory.10.0.4.nupkg.sha512",
+    "/root/.nuget/packages/microsoft.extensions.configuration.abstractions/10.0.4/microsoft.extensions.configuration.abstractions.10.0.4.nupkg.sha512",
+    "/root/.nuget/packages/microsoft.extensions.dependencyinjection/10.0.4/microsoft.extensions.dependencyinjection.10.0.4.nupkg.sha512",
+    "/root/.nuget/packages/microsoft.extensions.dependencyinjection.abstractions/10.0.4/microsoft.extensions.dependencyinjection.abstractions.10.0.4.nupkg.sha512",
+    "/root/.nuget/packages/microsoft.extensions.logging/10.0.4/microsoft.extensions.logging.10.0.4.nupkg.sha512",
+    "/root/.nuget/packages/microsoft.extensions.logging.abstractions/10.0.4/microsoft.extensions.logging.abstractions.10.0.4.nupkg.sha512",
+    "/root/.nuget/packages/microsoft.extensions.options/10.0.4/microsoft.extensions.options.10.0.4.nupkg.sha512",
+    "/root/.nuget/packages/microsoft.extensions.primitives/10.0.4/microsoft.extensions.primitives.10.0.4.nupkg.sha512",
+    "/root/.nuget/packages/microsoft.identitymodel.abstractions/8.19.1/microsoft.identitymodel.abstractions.8.19.1.nupkg.sha512",
+    "/root/.nuget/packages/microsoft.identitymodel.jsonwebtokens/8.19.1/microsoft.identitymodel.jsonwebtokens.8.19.1.nupkg.sha512",
+    "/root/.nuget/packages/microsoft.identitymodel.logging/8.19.1/microsoft.identitymodel.logging.8.19.1.nupkg.sha512",
+    "/root/.nuget/packages/microsoft.identitymodel.tokens/8.19.1/microsoft.identitymodel.tokens.8.19.1.nupkg.sha512",
+    "/root/.nuget/packages/npgsql/10.0.3/npgsql.10.0.3.nupkg.sha512",
+    "/root/.nuget/packages/npgsql.entityframeworkcore.postgresql/10.0.2/npgsql.entityframeworkcore.postgresql.10.0.2.nupkg.sha512",
+    "/root/.nuget/packages/system.identitymodel.tokens.jwt/8.19.1/system.identitymodel.tokens.jwt.8.19.1.nupkg.sha512"
+  ],
+  "logs": []
+}

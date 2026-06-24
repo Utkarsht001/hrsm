@@ -1,0 +1,15 @@
+/app/dotnet/HRMS.Application/bin/Release/net10.0/HRMS.Application.deps.json
+/app/dotnet/HRMS.Application/bin/Release/net10.0/HRMS.Application.dll
+/app/dotnet/HRMS.Application/bin/Release/net10.0/HRMS.Application.pdb
+/app/dotnet/HRMS.Application/bin/Release/net10.0/HRMS.Domain.dll
+/app/dotnet/HRMS.Application/bin/Release/net10.0/HRMS.Domain.pdb
+/app/dotnet/HRMS.Application/obj/Release/net10.0/HRMS.Application.csproj.AssemblyReference.cache
+/app/dotnet/HRMS.Application/obj/Release/net10.0/HRMS.Application.GeneratedMSBuildEditorConfig.editorconfig
+/app/dotnet/HRMS.Application/obj/Release/net10.0/HRMS.Application.AssemblyInfoInputs.cache
+/app/dotnet/HRMS.Application/obj/Release/net10.0/HRMS.Application.AssemblyInfo.cs
+/app/dotnet/HRMS.Application/obj/Release/net10.0/HRMS.Application.csproj.CoreCompileInputs.cache
+/app/dotnet/HRMS.Application/obj/Release/net10.0/HRMS.App.83A5D7FA.Up2Date
+/app/dotnet/HRMS.Application/obj/Release/net10.0/HRMS.Application.dll
+/app/dotnet/HRMS.Application/obj/Release/net10.0/refint/HRMS.Application.dll
+/app/dotnet/HRMS.Application/obj/Release/net10.0/HRMS.Application.pdb
+/app/dotnet/HRMS.Application/obj/Release/net10.0/ref/HRMS.Application.dll

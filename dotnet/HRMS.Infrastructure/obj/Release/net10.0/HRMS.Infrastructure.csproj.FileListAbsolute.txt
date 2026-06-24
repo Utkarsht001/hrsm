@@ -1,0 +1,17 @@
+/app/dotnet/HRMS.Infrastructure/obj/Release/net10.0/HRMS.Infrastructure.csproj.AssemblyReference.cache
+/app/dotnet/HRMS.Infrastructure/obj/Release/net10.0/HRMS.Infrastructure.GeneratedMSBuildEditorConfig.editorconfig
+/app/dotnet/HRMS.Infrastructure/obj/Release/net10.0/HRMS.Infrastructure.AssemblyInfoInputs.cache
+/app/dotnet/HRMS.Infrastructure/obj/Release/net10.0/HRMS.Infrastructure.AssemblyInfo.cs
+/app/dotnet/HRMS.Infrastructure/obj/Release/net10.0/HRMS.Infrastructure.csproj.CoreCompileInputs.cache
+/app/dotnet/HRMS.Infrastructure/bin/Release/net10.0/HRMS.Infrastructure.deps.json
+/app/dotnet/HRMS.Infrastructure/bin/Release/net10.0/HRMS.Infrastructure.dll
+/app/dotnet/HRMS.Infrastructure/bin/Release/net10.0/HRMS.Infrastructure.pdb
+/app/dotnet/HRMS.Infrastructure/bin/Release/net10.0/HRMS.Application.dll
+/app/dotnet/HRMS.Infrastructure/bin/Release/net10.0/HRMS.Domain.dll
+/app/dotnet/HRMS.Infrastructure/bin/Release/net10.0/HRMS.Application.pdb
+/app/dotnet/HRMS.Infrastructure/bin/Release/net10.0/HRMS.Domain.pdb
+/app/dotnet/HRMS.Infrastructure/obj/Release/net10.0/HRMS.Inf.BA81F186.Up2Date
+/app/dotnet/HRMS.Infrastructure/obj/Release/net10.0/HRMS.Infrastructure.dll
+/app/dotnet/HRMS.Infrastructure/obj/Release/net10.0/refint/HRMS.Infrastructure.dll
+/app/dotnet/HRMS.Infrastructure/obj/Release/net10.0/HRMS.Infrastructure.pdb
+/app/dotnet/HRMS.Infrastructure/obj/Release/net10.0/ref/HRMS.Infrastructure.dll
