@@ -1,0 +1,51 @@
+{
+  "summary": "Full backend + frontend smoke testing of WorkFlow HRMS (Next.js 16 + FastAPI + MongoDB). Backend: 29/29 pytest tests pass against the public preview URL covering auth, all 15 modules, role-gated endpoints, and Claude Sonnet copilot. Frontend (480x900 mobile viewport): login, demo accounts, role switcher (Sarah->Manager->HR with correct bottom nav swap), onboarding dashboard for Alex (6 tasks, progress bar, welcome messages), attendance clock-in/selfie, leave create + manager approve flow (toast shown), payroll January 2026 payslip, modules drawer (all 14 module links present, navigation works), expenses, recruitment pipeline, announcements, recognition, training, analytics HR dashboard with department chart, and HR Copilot returning multi-sentence Claude responses — all functional.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "LoginPage (app/(auth)/login/page.tsx)",
+        "issue": "DUPLICATE data-testid: both Sarah (employee) and Alex (onboarding employee) demo buttons share data-testid='demo-login-employee-btn'. Two DOM nodes with identical testid breaks single-selector usage (Playwright's locator returns strict-mode violation). Alex should get a distinct id such as 'demo-login-onboarding-btn' (or 'demo-login-alex-btn') as called out in the test spec.",
+        "selector": "[data-testid=demo-login-employee-btn] (2 instances)",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "Global",
+        "issues": ["Next.js HMR WebSocket (wss .../_next/webpack-hmr) returns 502 in the preview env — non-blocking dev-only noise, but pollutes console. Consider disabling HMR WS in preview or proxying it through ingress."]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "Change Alex's demo login button data-testid in /app/frontend/app/(auth)/login/page.tsx from 'demo-login-employee-btn' to 'demo-login-onboarding-btn' (or similar) so it is uniquely targetable per the original spec."
+  ],
+  "critical_code_review_comments": [
+    "/app/backend/server.py is 1132 lines — consider splitting per-module routers (auth, attendance, leave, payroll, etc.) for maintainability (>700 line threshold).",
+    "CORS_ORIGINS='*' in /app/backend/.env: acceptable for preview but should be locked down for production.",
+    "JWT secret is committed in plaintext in backend/.env (expected for preview, flag for prod hardening).",
+    "Recognition API requires 'recipient_id'+'category' and Announcements requires 'content' (not 'body') — payload field names differ slightly from common conventions; ensure frontend forms align (they appear to)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/__init__.py (new)",
+    "/app/backend/tests/backend_test.py (new — pytest suite, 29 tests)"
+  ],
+  "success_rate": {
+    "backend": "100% (29/29)",
+    "frontend": "~95% (all critical flows pass; one duplicate-testid blocking automated Alex login by selector but workaround exists by indexing the duplicates)"
+  },
+  "test_credentials": "Pulled from /app/memory/test_credentials.md — admin/sarah/michael/priya/alex with password = name + 123. All 5 logins succeed against /api/auth/login.",
+  "seed_data_creation": "Tests create TEST_ prefixed leave request, expense, document, recognition, announcement records via API. No cleanup implemented (intentionally — these surface in manager approval queues for retesting).",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend public URL https://hr-system-build-3.preview.emergentagent.com is healthy; all /api endpoints work. Backend test file lives at /app/backend/tests/backend_test.py — run with `pytest /app/backend/tests/ -v --junitxml=/app/test_reports/pytest/pytest_results.xml`. Frontend uses mobile viewport 480x900. Note: Sarah may already be 'clocked-in' from previous test runs (attendance.history is cumulative), so clock-in-btn may be hidden and clock-out-btn shown — handle both states. Demo login buttons: 4 unique testids + 1 duplicate for Alex (use page.query_selector_all + last() to get Alex). Manager Michael's leave approval queue carries the Sarah TEST leave requests created by backend tests — they pile up so be aware while retesting.",
+  "rca of the issue": "Duplicate data-testid on login page is caused by demo accounts list iterating with role-based testid suffix; Sarah and Alex both have role='employee'. Mitigation: derive testid from email/name or add a dedicated 'onboarding' demo flag for Alex's button. Single-line fix in app/(auth)/login/page.tsx button render."
+}

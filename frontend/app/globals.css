@@ -1,0 +1,129 @@
+@import "tailwindcss";
+@import "react-datepicker/dist/react-datepicker.css";
+
+/* ==========================================================================
+   WorkFlow HRMS — Teal + Orange Design System
+   ========================================================================== */
+:root {
+  --background: #f7f5f0;          /* warm off-white */
+  --foreground: #0b1f2a;          /* deep navy ink */
+  --surface: #ffffff;
+  --surface-2: #f0ece4;           /* subtle warm panel */
+  --teal-50: #ecfeff;
+  --teal-100: #cffafe;
+  --teal-500: #14b8a6;
+  --teal-600: #0d9488;
+  --teal-700: #0f766e;
+  --teal-900: #134e4a;
+  --orange-50: #fff7ed;
+  --orange-400: #fb923c;
+  --orange-500: #f97316;
+  --orange-600: #ea580c;
+  --orange-700: #c2410c;
+  --slate-100: #f1f5f9;
+  --slate-200: #e2e8f0;
+  --slate-400: #94a3b8;
+  --slate-500: #64748b;
+  --slate-600: #475569;
+  --slate-700: #334155;
+  --slate-900: #0f172a;
+  --success: #16a34a;
+  --warning: #d97706;
+  --danger: #dc2626;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --shadow-soft: 0 1px 2px rgba(11, 31, 42, 0.04), 0 4px 14px -8px rgba(11, 31, 42, 0.10);
+  --shadow-pop: 0 10px 30px -10px rgba(13, 148, 136, 0.25), 0 4px 12px -4px rgba(11, 31, 42, 0.08);
+}
+
+html, body { background: var(--background); color: var(--foreground); }
+body {
+  font-family: 'Plus Jakarta Sans', 'Söhne', ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* --- Utility shortcuts driven by the palette --- */
+.bg-app { background: var(--background); }
+.bg-surface { background: var(--surface); }
+.bg-surface-2 { background: var(--surface-2); }
+.text-ink { color: var(--foreground); }
+.text-muted { color: var(--slate-500); }
+.text-strong { color: var(--slate-900); }
+
+.btn { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.6rem 1rem;
+  border-radius: 999px; font-weight: 600; font-size: 0.875rem; transition: all .15s ease;
+  border: 1px solid transparent; cursor: pointer; }
+.btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn-primary { background: var(--teal-700); color: white; }
+.btn-primary:hover:not(:disabled) { background: var(--teal-900); transform: translateY(-1px); box-shadow: var(--shadow-pop); }
+.btn-accent { background: var(--orange-500); color: white; }
+.btn-accent:hover:not(:disabled) { background: var(--orange-600); transform: translateY(-1px); }
+.btn-ghost { background: transparent; color: var(--foreground); border-color: var(--slate-200); }
+.btn-ghost:hover:not(:disabled) { background: var(--surface-2); }
+.btn-danger { background: var(--danger); color: white; }
+
+.card {
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(11, 31, 42, 0.06);
+  box-shadow: var(--shadow-soft);
+}
+
+.input {
+  width: 100%; padding: 0.625rem 0.875rem;
+  border-radius: var(--radius-md); border: 1px solid var(--slate-200);
+  background: white; color: var(--foreground); font-size: 0.875rem;
+  outline: none; transition: border .15s ease, box-shadow .15s ease;
+}
+.input:focus { border-color: var(--teal-500); box-shadow: 0 0 0 4px rgba(20, 184, 166, 0.12); }
+textarea.input { min-height: 90px; resize: vertical; font-family: inherit; }
+
+.badge { display: inline-flex; align-items: center; padding: 0.15rem 0.6rem; border-radius: 999px;
+  font-size: 0.7rem; font-weight: 600; letter-spacing: 0.02em; }
+.badge-teal { background: var(--teal-100); color: var(--teal-900); }
+.badge-orange { background: var(--orange-50); color: var(--orange-700); }
+.badge-success { background: #dcfce7; color: #166534; }
+.badge-warn { background: #fef3c7; color: #92400e; }
+.badge-danger { background: #fee2e2; color: #991b1b; }
+.badge-slate { background: var(--slate-100); color: var(--slate-700); }
+
+.divider { height: 1px; background: rgba(11, 31, 42, 0.08); }
+
+/* Animated entrance */
+@keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+.animate-rise { animation: rise .35s ease-out both; }
+.stagger > * { animation: rise .4s ease-out both; }
+.stagger > *:nth-child(2) { animation-delay: .05s; }
+.stagger > *:nth-child(3) { animation-delay: .1s; }
+.stagger > *:nth-child(4) { animation-delay: .15s; }
+.stagger > *:nth-child(5) { animation-delay: .2s; }
+.stagger > *:nth-child(6) { animation-delay: .25s; }
+
+/* Mobile-first container */
+.mobile-shell { max-width: 480px; margin: 0 auto; min-height: 100vh; background: var(--background);
+  box-shadow: 0 0 0 1px rgba(11,31,42,0.05); position: relative; padding-bottom: 88px; }
+
+/* Bottom nav */
+.bottom-nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+  width: 100%; max-width: 480px; background: white; border-top: 1px solid rgba(11,31,42,0.08);
+  padding: 0.5rem 0.25rem env(safe-area-inset-bottom, 0.5rem); z-index: 30;
+  display: grid; grid-template-columns: repeat(5, 1fr); gap: 2px; }
+.bottom-nav a, .bottom-nav button { display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 0.4rem 0.2rem; border-radius: 12px; color: var(--slate-500); font-size: 0.65rem; font-weight: 500; }
+.bottom-nav .active { color: var(--teal-700); background: var(--teal-50); }
+
+/* Subtle grain background for headers */
+.grain { background-image: radial-gradient(rgba(11,31,42,0.04) 1px, transparent 1px); background-size: 4px 4px; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: rgba(11,31,42,0.2); border-radius: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* react-datepicker tweaks */
+.react-datepicker { font-family: inherit; }
+.react-datepicker__header { background: var(--teal-700); color: white; border: none; }
+.react-datepicker__day--selected { background: var(--teal-700); }
