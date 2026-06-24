@@ -140,16 +140,16 @@ export default function OnboardingDashboard() {
       <div>
         <h2 className="font-bold mb-2 flex items-center gap-2"><Users size={16} /> Meet your team</h2>
         <div className="space-y-2">
-          {data.team_intros.map((t: any, i: number) => (
-            <div key={i} className="card p-3">
+          {data.team_intros.map((t: any) => (
+            <div key={t.name} className="card p-3">
               <div className="flex items-center justify-between mb-1">
                 <div className="text-sm font-semibold">{t.name}</div>
                 <span className="badge badge-teal text-[10px]">{t.role}</span>
               </div>
               <p className="text-xs text-muted">{t.bio}</p>
               <div className="flex flex-wrap gap-1 mt-1.5">
-                {t.expertise.map((e: string, j: number) => (
-                  <span key={j} className="badge badge-slate text-[10px]">{e}</span>
+                {t.expertise.map((e: string) => (
+                  <span key={e} className="badge badge-slate text-[10px]">{e}</span>
                 ))}
               </div>
               <div className="text-[11px] text-[color:var(--orange-600)] italic mt-1.5">Fun fact: {t.fun_fact}</div>
@@ -162,8 +162,8 @@ export default function OnboardingDashboard() {
       <div>
         <h2 className="font-bold mb-2 flex items-center gap-2"><Award size={16} /> Milestones</h2>
         <div className="space-y-2">
-          {data.milestones.map((m: any, i: number) => (
-            <div key={i} className="card p-3 flex items-center justify-between">
+          {data.milestones.map((m: any) => (
+            <div key={m.title} className="card p-3 flex items-center justify-between">
               <div>
                 <div className="text-sm font-semibold">{m.title}</div>
                 <div className="text-xs text-muted">{m.date}</div>

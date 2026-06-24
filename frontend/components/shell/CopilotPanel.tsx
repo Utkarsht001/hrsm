@@ -76,8 +76,8 @@ export function CopilotPanel({ onClose }: { onClose: () => void }) {
         </div>
 
         <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-3 bg-[color:var(--surface-2)]">
-          {messages.map((m, i) => (
-            <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+          {messages.map((m) => (
+            <div key={m.ts} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
               <div className={`max-w-[80%] px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed ${
                 m.role === "user" ? "bg-[color:var(--teal-700)] text-white rounded-br-sm" : "bg-white text-ink rounded-bl-sm shadow-sm"
               }`}>
@@ -100,10 +100,10 @@ export function CopilotPanel({ onClose }: { onClose: () => void }) {
 
         <div className="p-3 border-t border-black/5 bg-surface">
           <div className="flex gap-1.5 mb-2 overflow-x-auto pb-1">
-            {suggestions.map((s, i) => (
+            {suggestions.map((s) => (
               <button
-                key={i}
-                data-testid={`copilot-suggestion-${i}`}
+                key={s}
+                data-testid={`copilot-suggestion-${s.slice(0, 12).replace(/[^a-z0-9]/gi, "-")}`}
                 onClick={() => send(s)}
                 disabled={busy}
                 className="text-xs whitespace-nowrap px-3 py-1.5 rounded-full bg-[color:var(--teal-50)] text-[color:var(--teal-900)] hover:bg-[color:var(--teal-100)]"

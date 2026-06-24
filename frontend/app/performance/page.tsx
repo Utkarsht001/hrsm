@@ -75,8 +75,8 @@ export default function PerformancePage() {
               </div>
               {g.key_results?.length > 0 && (
                 <div className="mt-2 pt-2 border-t border-black/5 space-y-1">
-                  {g.key_results.map((kr: any, i: number) => (
-                    <div key={i} className="text-xs flex justify-between">
+                  {g.key_results.map((kr: any) => (
+                    <div key={kr.title} className="text-xs flex justify-between">
                       <span>{kr.title}</span>
                       <span className="font-semibold">{kr.current}/{kr.target}</span>
                     </div>
@@ -115,9 +115,9 @@ export default function PerformancePage() {
               </div>
               <div className="text-xs">
                 <div className="font-semibold mb-1">Strengths</div>
-                <ul className="list-disc list-inside text-muted">{r.strengths?.map((s: string, i: number) => <li key={i}>{s}</li>)}</ul>
+                <ul className="list-disc list-inside text-muted">{r.strengths?.map((s: string) => <li key={s}>{s}</li>)}</ul>
                 <div className="font-semibold mt-2 mb-1">Areas to improve</div>
-                <ul className="list-disc list-inside text-muted">{r.improvements?.map((s: string, i: number) => <li key={i}>{s}</li>)}</ul>
+                <ul className="list-disc list-inside text-muted">{r.improvements?.map((s: string) => <li key={s}>{s}</li>)}</ul>
                 <div className="font-semibold mt-2 mb-1">Recommendation</div>
                 <p className="italic">{r.recommendations}</p>
                 <div className="mt-2 text-muted">Goals achieved: <b>{r.goals_achieved}/{r.goals_total}</b></div>

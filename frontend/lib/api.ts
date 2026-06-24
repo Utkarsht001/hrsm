@@ -1,6 +1,13 @@
 const RAW = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "";
 export const BACKEND_URL = RAW.replace(/\/$/, "");
 
+// Token storage strategy:
+// Primary auth: httpOnly cookie set by backend on /api/auth/login (XSS-safe,
+// browser sends automatically on same-origin requests).
+// Fallback: short-lived Bearer token in localStorage — only consulted when the
+// cookie isn't present (e.g., legacy clients, cross-origin previews). The
+// session module still calls /api/auth/me on bootstrap so a stale localStorage
+// value is rejected server-side, not trusted.
 const TOKEN_KEY = "wf_token";
 
 export function getToken(): string | null {
@@ -23,7 +30,11 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     ...((init.headers as Record<string, string>) || {}),
   };
   if (token) headers["Authorization"] = `Bearer ${token}`;
-  const res = await fetch(`${BACKEND_URL}${path}`, { ...init, headers });
+  const res = await fetch(`${BACKEND_URL}${path}`, {
+    ...init,
+    headers,
+    credentials: "include", // send httpOnly auth cookie on same-origin
+  });
   const text = await res.text();
   const data = text ? safeJson(text) : null;
   if (!res.ok) {

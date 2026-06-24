@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, PropsWithChildren, useCallback, useContext, useEffect, useState } from "react";
+import { createContext, PropsWithChildren, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { useDispatch } from "react-redux";
 import { useRouter, usePathname } from "next/navigation";
 import { api, setToken, clearToken, getToken } from "../lib/api";
@@ -20,6 +20,8 @@ export type AuthUser = {
   avatar_color?: string;
 };
 
+type DemoCred = { email: string; password: string; name: string; role: string };
+
 export type SessionContextValue = {
   user: AuthUser | null;
   loading: boolean;
@@ -31,19 +33,14 @@ export type SessionContextValue = {
 
 const SessionContext = createContext<SessionContextValue | undefined>(undefined);
 
-const ROLE_ACCOUNTS: Record<string, { email: string; password: string }> = {
-  employee: { email: "sarah@workflow.com", password: "sarah123" },
-  manager:  { email: "michael@workflow.com", password: "michael123" },
-  hr:       { email: "priya@workflow.com", password: "priya123" },
-  admin:    { email: "admin@workflow.com", password: "admin123" },
-};
-
 export function SessionProvider({ children }: PropsWithChildren) {
   const dispatch = useDispatch();
   const router = useRouter();
   const pathname = usePathname();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
+  // Demo creds fetched once from backend — no hardcoded passwords in the bundle.
+  const demoCredsRef = useRef<DemoCred[]>([]);
 
   const fetchMe = useCallback(async () => {
     const tok = getToken();
@@ -59,8 +56,18 @@ export function SessionProvider({ children }: PropsWithChildren) {
     }
   }, [dispatch]);
 
+  // One-time bootstrap: hydrate session + load demo creds for the role switcher.
   useEffect(() => {
-    fetchMe().finally(() => setLoading(false));
+    let cancelled = false;
+    (async () => {
+      const [, demos] = await Promise.allSettled([
+        fetchMe(),
+        api.get<DemoCred[]>("/api/auth/demo-users"),
+      ]);
+      if (!cancelled && demos.status === "fulfilled") demoCredsRef.current = demos.value;
+      if (!cancelled) setLoading(false);
+    })();
+    return () => { cancelled = true; };
   }, [fetchMe]);
 
   const login = useCallback(async ({ email, password }: { email: string; password: string }) => {
@@ -71,6 +78,7 @@ export function SessionProvider({ children }: PropsWithChildren) {
   }, [dispatch]);
 
   const logout = useCallback(async () => {
+    try { await api.post("/api/auth/logout"); } catch { /* best-effort: cookie/session cleanup */ }
     clearToken();
     setUser(null);
     dispatch(clearCredentials());
@@ -78,9 +86,11 @@ export function SessionProvider({ children }: PropsWithChildren) {
   }, [dispatch, router]);
 
   const switchRole = useCallback(async (role: AuthUser["role"]) => {
-    const creds = ROLE_ACCOUNTS[role];
+    // Pick the FIRST demo account matching this role; deliberately ignores the
+    // onboarding alt account so /switch-role/employee lands on Sarah, not Alex.
+    const creds = demoCredsRef.current.find(c => c.role === role && !c.email.startsWith("alex"));
     if (!creds) return;
-    await login(creds);
+    await login({ email: creds.email, password: creds.password });
   }, [login]);
 
   // Route guard - redirect to login if no user and not on /login

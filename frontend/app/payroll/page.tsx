@@ -32,8 +32,8 @@ export default function PayrollPage() {
         <>
           <SectionTitle title="Compliance dashboard" />
           <div className="space-y-2 mb-4">
-            {compliance.items.map((c: any, i: number) => (
-              <div key={i} className="card p-3 flex items-center justify-between" data-testid={`compliance-${i}`}>
+            {compliance.items.map((c: any) => (
+              <div key={`${c.country}-${c.name}`} className="card p-3 flex items-center justify-between" data-testid={`compliance-${c.name.replace(/\s/g, "-")}`}>
                 <div>
                   <div className="text-sm font-semibold">{c.name}</div>
                   <div className="text-xs text-muted">{c.country} · Due {c.due_date}</div>

@@ -13,11 +13,10 @@ from datetime import datetime, timezone, timedelta
 from typing import Optional, List, Any, Dict
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException, Depends, Request, Response, status
+from fastapi import FastAPI, HTTPException, Depends, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
 from motor.motor_asyncio import AsyncIOMotorClient
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr
 
 # ---------------------------------------------------------------------------
 # Config
@@ -131,12 +130,12 @@ DEMO_USERS = [
     {"email": "alex@workflow.com",    "password": "alex123",     "name": "Alex Rivera",    "role": "employee", "designation": "Junior Developer",      "department": "Engineering", "country": "US", "is_onboarding": True},
 ]
 
-async def seed_data():
-    # Users
+async def _seed_users():
+    """Insert the 5 demo users; idempotent. Also re-syncs admin's password if .env changed."""
     for u in DEMO_USERS:
         existing = await db.users.find_one({"email": u["email"]})
         if existing is None:
-            doc = {
+            await db.users.insert_one({
                 "id": gen_id(),
                 "email": u["email"],
                 "password_hash": hash_password(u["password"]),
@@ -150,93 +149,99 @@ async def seed_data():
                 "joining_date": "2024-01-15" if not u.get("is_onboarding") else "2026-02-01",
                 "avatar_color": "#14b8a6",
                 "created_at": now_iso(),
-            }
-            await db.users.insert_one(doc)
-        else:
-            # ensure password matches env-changed admin
-            if u["email"] == os.environ.get("ADMIN_EMAIL") and not verify_password(u["password"], existing.get("password_hash", "")):
-                await db.users.update_one({"email": u["email"]}, {"$set": {"password_hash": hash_password(u["password"])}})
+            })
+        elif u["email"] == os.environ.get("ADMIN_EMAIL") and not verify_password(u["password"], existing.get("password_hash", "")):
+            await db.users.update_one({"email": u["email"]}, {"$set": {"password_hash": hash_password(u["password"])}})
 
-    # Link sarah/alex to michael
+
+async def _link_reporting():
     michael = await db.users.find_one({"email": "michael@workflow.com"})
     if michael:
-        await db.users.update_many({"email": {"$in": ["sarah@workflow.com", "alex@workflow.com"]}}, {"$set": {"manager_id": michael["id"]}})
+        await db.users.update_many(
+            {"email": {"$in": ["sarah@workflow.com", "alex@workflow.com"]}},
+            {"$set": {"manager_id": michael["id"]}},
+        )
 
-    # Seed module collections (idempotent: check count first)
-    sarah = await db.users.find_one({"email": "sarah@workflow.com"})
-    alex = await db.users.find_one({"email": "alex@workflow.com"})
 
-    # Leave balances
-    if await db.leave_balances.count_documents({}) == 0 and sarah:
-        for u in await db.users.find({"role": {"$in": ["employee", "manager", "hr"]}}).to_list(100):
-            for ltype, total in [("casual", 12), ("sick", 10), ("personal", 5), ("comp-off", 3)]:
-                await db.leave_balances.insert_one({
-                    "id": gen_id(), "user_id": u["id"], "type": ltype,
-                    "total": total, "used": 0, "pending": 0, "available": total,
-                    "carried_forward": 0, "encashed": 0, "year": 2026,
-                })
-
-    # Sample leave requests
-    if await db.leave_requests.count_documents({}) == 0 and sarah:
-        await db.leave_requests.insert_one({
-            "id": gen_id(), "user_id": sarah["id"], "user_name": sarah["name"],
-            "type": "casual", "start_date": "2026-01-20", "end_date": "2026-01-21",
-            "total_days": 2, "reason": "Family event", "status": "pending",
-            "approval_level": "manager", "approver_id": michael["id"] if michael else None,
-            "approver_comments": "", "created_at": now_iso(),
-        })
-
-    # Attendance sample
-    if await db.attendance.count_documents({}) == 0 and sarah:
-        await db.attendance.insert_one({
-            "id": gen_id(), "user_id": sarah["id"],
-            "date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
-            "clock_in": None, "clock_out": None, "status": "absent",
-            "method": None, "location_verified": False, "ip_validated": False,
-            "total_hours": 0, "productive_hours": 0, "break_hours": 0, "overtime_hours": 0,
-        })
-
-    # Payroll sample
-    if await db.payroll.count_documents({}) == 0 and sarah:
-        for u in [sarah, michael]:
-            if not u:
-                continue
-            await db.payroll.insert_one({
-                "id": gen_id(), "user_id": u["id"], "user_name": u["name"],
-                "country": u.get("country", "US"), "currency": "USD" if u.get("country") == "US" else "INR",
-                "pay_period": "January 2026", "pay_date": "2026-01-31",
-                "earnings": {"basic": 5000, "hra": 1500, "special_allowance": 800, "bonus": 0, "overtime": 0, "reimbursements": 200},
-                "deductions": {"income_tax": 850, "professional_tax": 50, "pf": 500, "esi": 80, "health_insurance": 120, "lwf": 0},
-                "employer_contributions": {"pf": 500, "esi": 200, "gratuity": 100},
-                "gross": 7500, "total_deductions": 1600, "net": 5900,
-                "status": "paid",
+async def _seed_leave(sarah: Dict, michael: Optional[Dict]):
+    if await db.leave_balances.count_documents({}) > 0:
+        return
+    for u in await db.users.find({"role": {"$in": ["employee", "manager", "hr"]}}).to_list(100):
+        for ltype, total in [("casual", 12), ("sick", 10), ("personal", 5), ("comp-off", 3)]:
+            await db.leave_balances.insert_one({
+                "id": gen_id(), "user_id": u["id"], "type": ltype,
+                "total": total, "used": 0, "pending": 0, "available": total,
+                "carried_forward": 0, "encashed": 0, "year": 2026,
             })
+    await db.leave_requests.insert_one({
+        "id": gen_id(), "user_id": sarah["id"], "user_name": sarah["name"],
+        "type": "casual", "start_date": "2026-01-20", "end_date": "2026-01-21",
+        "total_days": 2, "reason": "Family event", "status": "pending",
+        "approval_level": "manager", "approver_id": michael["id"] if michael else None,
+        "approver_comments": "", "created_at": now_iso(),
+    })
 
-    # Documents
-    if await db.documents.count_documents({}) == 0 and sarah:
-        for d in [
-            {"category": "identity", "name": "Passport", "status": "verified", "expiry": "2030-05-12"},
-            {"category": "employment", "name": "Offer Letter", "status": "verified"},
-            {"category": "work-auth", "name": "H1-B Visa", "status": "uploaded", "expiry": "2027-03-01"},
-            {"category": "tax", "name": "W-2 Form 2025", "status": "verified"},
-            {"category": "education", "name": "Degree Certificate", "status": "missing"},
-        ]:
-            await db.documents.insert_one({"id": gen_id(), "user_id": sarah["id"], "uploaded_at": now_iso(), **d})
 
-    # Expenses
-    if await db.expenses.count_documents({}) == 0 and sarah:
-        await db.expenses.insert_one({
-            "id": gen_id(), "user_id": sarah["id"], "user_name": sarah["name"],
-            "category": "travel", "amount": 245.50, "currency": "USD",
-            "description": "Client meeting - San Francisco", "date": "2026-01-15",
-            "receipts": ["receipt-1.pdf"], "mileage": {"distance_km": 0, "from": "", "to": "", "vehicle": "", "rate": 0},
-            "policy_validation": {"within_limit": True, "receipt_required": True, "message": "Within policy"},
-            "taxable": False, "status": "pending-approval", "submitted_at": now_iso(),
-            "approver_id": michael["id"] if michael else None, "approver_comments": "",
+async def _seed_attendance(sarah: Dict):
+    if await db.attendance.count_documents({}) > 0:
+        return
+    await db.attendance.insert_one({
+        "id": gen_id(), "user_id": sarah["id"],
+        "date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+        "clock_in": None, "clock_out": None, "status": "absent",
+        "method": None, "location_verified": False, "ip_validated": False,
+        "total_hours": 0, "productive_hours": 0, "break_hours": 0, "overtime_hours": 0,
+    })
+
+
+async def _seed_payroll(sarah: Dict, michael: Optional[Dict]):
+    if await db.payroll.count_documents({}) > 0:
+        return
+    for u in [sarah, michael]:
+        if not u:
+            continue
+        await db.payroll.insert_one({
+            "id": gen_id(), "user_id": u["id"], "user_name": u["name"],
+            "country": u.get("country", "US"), "currency": "USD" if u.get("country") == "US" else "INR",
+            "pay_period": "January 2026", "pay_date": "2026-01-31",
+            "earnings": {"basic": 5000, "hra": 1500, "special_allowance": 800, "bonus": 0, "overtime": 0, "reimbursements": 200},
+            "deductions": {"income_tax": 850, "professional_tax": 50, "pf": 500, "esi": 80, "health_insurance": 120, "lwf": 0},
+            "employer_contributions": {"pf": 500, "esi": 200, "gratuity": 100},
+            "gross": 7500, "total_deductions": 1600, "net": 5900,
+            "status": "paid",
         })
 
-    # Goals
-    if await db.goals.count_documents({}) == 0 and sarah:
+
+async def _seed_documents(sarah: Dict):
+    if await db.documents.count_documents({}) > 0:
+        return
+    samples = [
+        {"category": "identity", "name": "Passport", "status": "verified", "expiry": "2030-05-12"},
+        {"category": "employment", "name": "Offer Letter", "status": "verified"},
+        {"category": "work-auth", "name": "H1-B Visa", "status": "uploaded", "expiry": "2027-03-01"},
+        {"category": "tax", "name": "W-2 Form 2025", "status": "verified"},
+        {"category": "education", "name": "Degree Certificate", "status": "missing"},
+    ]
+    for d in samples:
+        await db.documents.insert_one({"id": gen_id(), "user_id": sarah["id"], "uploaded_at": now_iso(), **d})
+
+
+async def _seed_expenses(sarah: Dict, michael: Optional[Dict]):
+    if await db.expenses.count_documents({}) > 0:
+        return
+    await db.expenses.insert_one({
+        "id": gen_id(), "user_id": sarah["id"], "user_name": sarah["name"],
+        "category": "travel", "amount": 245.50, "currency": "USD",
+        "description": "Client meeting - San Francisco", "date": "2026-01-15",
+        "receipts": ["receipt-1.pdf"], "mileage": {"distance_km": 0, "from": "", "to": "", "vehicle": "", "rate": 0},
+        "policy_validation": {"within_limit": True, "receipt_required": True, "message": "Within policy"},
+        "taxable": False, "status": "pending-approval", "submitted_at": now_iso(),
+        "approver_id": michael["id"] if michael else None, "approver_comments": "",
+    })
+
+
+async def _seed_performance(sarah: Dict, michael: Optional[Dict]):
+    if await db.goals.count_documents({}) == 0:
         await db.goals.insert_one({
             "id": gen_id(), "user_id": sarah["id"], "title": "Ship Q1 Auth Refactor",
             "description": "Migrate legacy auth to JWT", "category": "individual", "type": "quarterly",
@@ -247,9 +252,7 @@ async def seed_data():
             ],
             "created_at": now_iso(),
         })
-
-    # Performance reviews
-    if await db.reviews.count_documents({}) == 0 and sarah:
+    if await db.reviews.count_documents({}) == 0:
         await db.reviews.insert_one({
             "id": gen_id(), "user_id": sarah["id"], "user_name": sarah["name"],
             "period": "Q4 2025", "type": "quarterly",
@@ -264,8 +267,9 @@ async def seed_data():
             "created_at": now_iso(),
         })
 
-    # Contributions
-    if await db.contributions.count_documents({}) == 0 and sarah:
+
+async def _seed_contributions(sarah: Dict, michael: Optional[Dict]):
+    if await db.contributions.count_documents({}) == 0:
         await db.contributions.insert_one({
             "id": gen_id(), "user_id": sarah["id"], "user_name": sarah["name"],
             "title": "Auto-deploy pipeline", "description": "Set up GitHub Actions CI/CD",
@@ -277,29 +281,34 @@ async def seed_data():
             "created_at": now_iso(),
         })
     if await db.contribution_items.count_documents({}) == 0:
-        for item in [
+        items = [
             {"title": "Wiki page for onboarding", "category": "knowledge-sharing", "suggested_points": 50, "status": "available"},
             {"title": "Bug bash session lead", "category": "quality", "suggested_points": 80, "status": "available"},
             {"title": "Mentor a junior engineer", "category": "team-building", "suggested_points": 120, "status": "available"},
-        ]:
+        ]
+        for item in items:
             await db.contribution_items.insert_one({"id": gen_id(), "created_at": now_iso(), **item})
 
-    # Training modules
-    if await db.training_modules.count_documents({}) == 0:
-        for m in [
-            {"title": "Security & Compliance 2026", "category": "compliance", "duration_min": 45, "due_date": "2026-02-28", "mandatory": True, "certificate": True,
-             "content": [{"type": "video", "title": "Intro", "duration_min": 15, "completed": False},
-                         {"type": "quiz", "title": "Knowledge check", "duration_min": 10, "completed": False}]},
-            {"title": "TypeScript Deep Dive", "category": "technical", "duration_min": 180, "due_date": "2026-03-31", "mandatory": False, "certificate": True,
-             "content": [{"type": "video", "title": "Advanced types", "duration_min": 60, "completed": False}]},
-            {"title": "Effective Communication", "category": "soft-skills", "duration_min": 90, "due_date": "2026-04-15", "mandatory": False, "certificate": False,
-             "content": [{"type": "document", "title": "Reading", "duration_min": 30, "completed": False}]},
-        ]:
-            await db.training_modules.insert_one({"id": gen_id(), "created_at": now_iso(), **m})
 
-    # Job postings + candidates
+async def _seed_training():
+    if await db.training_modules.count_documents({}) > 0:
+        return
+    modules = [
+        {"title": "Security & Compliance 2026", "category": "compliance", "duration_min": 45, "due_date": "2026-02-28", "mandatory": True, "certificate": True,
+         "content": [{"type": "video", "title": "Intro", "duration_min": 15, "completed": False},
+                     {"type": "quiz", "title": "Knowledge check", "duration_min": 10, "completed": False}]},
+        {"title": "TypeScript Deep Dive", "category": "technical", "duration_min": 180, "due_date": "2026-03-31", "mandatory": False, "certificate": True,
+         "content": [{"type": "video", "title": "Advanced types", "duration_min": 60, "completed": False}]},
+        {"title": "Effective Communication", "category": "soft-skills", "duration_min": 90, "due_date": "2026-04-15", "mandatory": False, "certificate": False,
+         "content": [{"type": "document", "title": "Reading", "duration_min": 30, "completed": False}]},
+    ]
+    for m in modules:
+        await db.training_modules.insert_one({"id": gen_id(), "created_at": now_iso(), **m})
+
+
+async def _seed_recruitment():
     if await db.jobs.count_documents({}) == 0:
-        for j in [
+        jobs = [
             {"title": "Senior Backend Engineer", "department": "Engineering", "location": "Remote (US)", "employment_type": "Full-time",
              "experience": "5+ years", "salary_min": 130000, "salary_max": 180000, "currency": "USD", "status": "open",
              "requirements": ["Python", "PostgreSQL", "AWS"], "responsibilities": ["Design APIs", "Mentor engineers"],
@@ -308,72 +317,108 @@ async def seed_data():
              "experience": "3+ years", "salary_min": 1800000, "salary_max": 2800000, "currency": "INR", "status": "open",
              "requirements": ["Figma", "Design Systems"], "responsibilities": ["Own product flows"],
              "applicants": 41, "shortlisted": 8, "interviewing": 4},
-        ]:
+        ]
+        for j in jobs:
             await db.jobs.insert_one({"id": gen_id(), "created_at": now_iso(), **j})
 
-    if await db.candidates.count_documents({}) == 0:
-        jobs = await db.jobs.find().to_list(10)
-        if jobs:
-            for c in [
-                {"name": "Jordan Lee", "applied_role": jobs[0]["title"], "job_id": jobs[0]["id"], "status": "interview-scheduled",
-                 "rating": 4.2, "skills": ["Python", "FastAPI"], "experience_years": 6, "expected_salary": 165000,
-                 "currency": "USD", "notice_period_days": 45, "notes": "Strong systems background"},
-                {"name": "Aisha Patel", "applied_role": jobs[1]["title"], "job_id": jobs[1]["id"], "status": "shortlisted",
-                 "rating": 4.5, "skills": ["Figma", "User Research"], "experience_years": 4, "expected_salary": 2400000,
-                 "currency": "INR", "notice_period_days": 60, "notes": "Excellent portfolio"},
-                {"name": "Tom Becker", "applied_role": jobs[0]["title"], "job_id": jobs[0]["id"], "status": "new",
-                 "rating": 3.8, "skills": ["Go", "Kubernetes"], "experience_years": 5, "expected_salary": 150000,
-                 "currency": "USD", "notice_period_days": 30, "notes": ""},
-            ]:
-                await db.candidates.insert_one({"id": gen_id(), "applied_at": now_iso(), **c})
+    if await db.candidates.count_documents({}) > 0:
+        return
+    jobs = await db.jobs.find().to_list(10)
+    if not jobs:
+        return
+    candidates = [
+        {"name": "Jordan Lee", "applied_role": jobs[0]["title"], "job_id": jobs[0]["id"], "status": "interview-scheduled",
+         "rating": 4.2, "skills": ["Python", "FastAPI"], "experience_years": 6, "expected_salary": 165000,
+         "currency": "USD", "notice_period_days": 45, "notes": "Strong systems background"},
+        {"name": "Aisha Patel", "applied_role": jobs[1]["title"], "job_id": jobs[1]["id"], "status": "shortlisted",
+         "rating": 4.5, "skills": ["Figma", "User Research"], "experience_years": 4, "expected_salary": 2400000,
+         "currency": "INR", "notice_period_days": 60, "notes": "Excellent portfolio"},
+        {"name": "Tom Becker", "applied_role": jobs[0]["title"], "job_id": jobs[0]["id"], "status": "new",
+         "rating": 3.8, "skills": ["Go", "Kubernetes"], "experience_years": 5, "expected_salary": 150000,
+         "currency": "USD", "notice_period_days": 30, "notes": ""},
+    ]
+    for c in candidates:
+        await db.candidates.insert_one({"id": gen_id(), "applied_at": now_iso(), **c})
 
-    # Recognition
-    if await db.recognition.count_documents({}) == 0 and sarah and michael:
-        await db.recognition.insert_one({
-            "id": gen_id(), "sender_id": michael["id"], "sender_name": michael["name"],
-            "recipient_id": sarah["id"], "recipient_name": sarah["name"],
-            "category": "excellence", "message": "Outstanding work on the auth refactor — saved the team a week.",
-            "visibility": "public", "likes": 12, "comments_count": 3, "created_at": now_iso(),
+
+async def _seed_recognition(sarah: Dict, michael: Optional[Dict]):
+    if await db.recognition.count_documents({}) > 0 or not michael:
+        return
+    await db.recognition.insert_one({
+        "id": gen_id(), "sender_id": michael["id"], "sender_name": michael["name"],
+        "recipient_id": sarah["id"], "recipient_name": sarah["name"],
+        "category": "excellence", "message": "Outstanding work on the auth refactor — saved the team a week.",
+        "visibility": "public", "likes": 12, "comments_count": 3, "created_at": now_iso(),
+    })
+
+
+async def _seed_announcements():
+    if await db.announcements.count_documents({}) > 0:
+        return
+    priya = await db.users.find_one({"email": "priya@workflow.com"})
+    posts = [
+        {"title": "New Health Insurance Provider — Effective March 1",
+         "content": "We are switching to BlueShield. Please review the new plan documents and complete the enrollment by Feb 20.",
+         "category": "hr-update", "priority": "high", "visibility": "global", "target": [],
+         "views": 124, "likes": 18, "acknowledgments": 87, "comments_count": 6, "expiry": "2026-03-15"},
+        {"title": "Quarterly All-Hands — Friday 3pm",
+         "content": "Join us for the Q1 all-hands. CEO will share roadmap. Coffee & cookies in the lounge.",
+         "category": "event", "priority": "medium", "visibility": "global", "target": [],
+         "views": 87, "likes": 22, "acknowledgments": 0, "comments_count": 11, "expiry": "2026-01-31"},
+    ]
+    for a in posts:
+        await db.announcements.insert_one({
+            "id": gen_id(), "author_id": priya["id"] if priya else None,
+            "author_name": priya["name"] if priya else "HR Team",
+            "created_at": now_iso(), **a
         })
 
-    # Announcements
-    if await db.announcements.count_documents({}) == 0:
-        priya = await db.users.find_one({"email": "priya@workflow.com"})
-        for a in [
-            {"title": "New Health Insurance Provider — Effective March 1",
-             "content": "We are switching to BlueShield. Please review the new plan documents and complete the enrollment by Feb 20.",
-             "category": "hr-update", "priority": "high", "visibility": "global", "target": [],
-             "views": 124, "likes": 18, "acknowledgments": 87, "comments_count": 6, "expiry": "2026-03-15"},
-            {"title": "Quarterly All-Hands — Friday 3pm",
-             "content": "Join us for the Q1 all-hands. CEO will share roadmap. Coffee & cookies in the lounge.",
-             "category": "event", "priority": "medium", "visibility": "global", "target": [],
-             "views": 87, "likes": 22, "acknowledgments": 0, "comments_count": 11, "expiry": "2026-01-31"},
-        ]:
-            await db.announcements.insert_one({
-                "id": gen_id(), "author_id": priya["id"] if priya else None,
-                "author_name": priya["name"] if priya else "HR Team",
-                "created_at": now_iso(), **a
-            })
 
-    # Onboarding tasks for Alex
-    if await db.onboarding_tasks.count_documents({}) == 0 and alex:
-        for t in [
+async def _seed_onboarding(alex: Optional[Dict]):
+    if not alex:
+        return
+    if await db.onboarding_tasks.count_documents({}) == 0:
+        tasks = [
             {"phase": "pre-joining", "title": "Submit tax forms (W-4)", "description": "Complete and submit W-4", "priority": "high", "due_date": "2026-01-28", "assignee": "employee", "status": "pending"},
             {"phase": "pre-joining", "title": "Provide bank details", "description": "Direct deposit setup", "priority": "high", "due_date": "2026-01-28", "assignee": "employee", "status": "pending"},
             {"phase": "pre-joining", "title": "Sign offer letter", "description": "Digital signature", "priority": "high", "due_date": "2026-01-25", "assignee": "employee", "status": "completed", "completed_at": now_iso()},
             {"phase": "day-1", "title": "Office tour & ID card", "description": "Meet IT and Facilities", "priority": "medium", "due_date": "2026-02-01", "assignee": "hr", "status": "pending"},
             {"phase": "week-1", "title": "Complete security training", "description": "Mandatory module", "priority": "high", "due_date": "2026-02-08", "assignee": "employee", "status": "pending"},
             {"phase": "month-1", "title": "First 1:1 with manager", "description": "Manager check-in", "priority": "medium", "due_date": "2026-02-15", "assignee": "manager", "status": "pending"},
-        ]:
+        ]
+        for t in tasks:
             await db.onboarding_tasks.insert_one({"id": gen_id(), "user_id": alex["id"], **t})
-
-    if await db.welcome_messages.count_documents({}) == 0 and alex:
-        for m in [
+    if await db.welcome_messages.count_documents({}) == 0:
+        msgs = [
             {"sender_name": "Lara Wells", "sender_role": "CEO", "message": "Welcome to WorkFlow, Alex! We're thrilled to have you.", "has_video": True},
             {"sender_name": "Michael Chen", "sender_role": "Manager", "message": "Looking forward to building great things together!", "has_video": False},
             {"sender_name": "Sarah Mitchell", "sender_role": "Buddy", "message": "I'll be your onboarding buddy — text me anytime.", "has_video": False},
-        ]:
+        ]
+        for m in msgs:
             await db.welcome_messages.insert_one({"id": gen_id(), "user_id": alex["id"], "created_at": now_iso(), **m})
+
+
+async def seed_data():
+    """Top-level idempotent seeder — delegates each module to its own focused helper."""
+    await _seed_users()
+    await _link_reporting()
+    sarah = await db.users.find_one({"email": "sarah@workflow.com"})
+    michael = await db.users.find_one({"email": "michael@workflow.com"})
+    alex = await db.users.find_one({"email": "alex@workflow.com"})
+    if not sarah:
+        return  # cannot seed module data without Sarah; users seed failed
+    await _seed_leave(sarah, michael)
+    await _seed_attendance(sarah)
+    await _seed_payroll(sarah, michael)
+    await _seed_documents(sarah)
+    await _seed_expenses(sarah, michael)
+    await _seed_performance(sarah, michael)
+    await _seed_contributions(sarah, michael)
+    await _seed_training()
+    await _seed_recruitment()
+    await _seed_recognition(sarah, michael)
+    await _seed_announcements()
+    await _seed_onboarding(alex)
 
 # ---------------------------------------------------------------------------
 # Schemas
@@ -395,17 +440,30 @@ class RegisterIn(BaseModel):
 async def health():
     return {"status": "ok", "time": now_iso()}
 
+def _set_auth_cookie(response: Response, token: str) -> None:
+    """Mirror the JWT into an httpOnly cookie. Frontend sends it via
+    `credentials: 'include'`; the Bearer-token fallback in localStorage is
+    only used when the cookie is unavailable (e.g., cross-origin clients).
+    """
+    response.set_cookie(
+        key="access_token", value=token, httponly=True,
+        secure=True, samesite="lax",
+        max_age=ACCESS_TOKEN_MINUTES * 60, path="/",
+    )
+
+
 @app.post("/api/auth/login")
-async def login(body: LoginIn):
+async def login(body: LoginIn, response: Response):
     email = body.email.lower()
     user = await db.users.find_one({"email": email})
     if not user or not verify_password(body.password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     token = create_token(user["id"], user["email"], user["role"])
+    _set_auth_cookie(response, token)
     return {"accessToken": token, "user": serialize(dict(user))}
 
 @app.post("/api/auth/register")
-async def register(body: RegisterIn):
+async def register(body: RegisterIn, response: Response):
     email = body.email.lower()
     if await db.users.find_one({"email": email}):
         raise HTTPException(status_code=400, detail="Email already exists")
@@ -419,6 +477,7 @@ async def register(body: RegisterIn):
     }
     await db.users.insert_one(doc)
     token = create_token(doc["id"], doc["email"], doc["role"])
+    _set_auth_cookie(response, token)
     return {"accessToken": token, "user": serialize(dict(doc))}
 
 @app.get("/api/auth/me")
@@ -426,7 +485,8 @@ async def me(user: Dict = Depends(get_current_user)):
     return user
 
 @app.post("/api/auth/logout")
-async def logout():
+async def logout(response: Response):
+    response.delete_cookie(key="access_token", path="/")
     return {"ok": True}
 
 @app.get("/api/auth/demo-users")
@@ -443,12 +503,13 @@ async def list_users(user: Dict = Depends(get_current_user)):
 
 @app.get("/api/team")
 async def my_team(user: Dict = Depends(get_current_user)):
+    # Initialize first so every branch returns a defined list (defensive against
+    # future role additions that might fall through without a guarding clause).
+    docs: List[Dict] = []
     if user["role"] == "manager":
         docs = await db.users.find({"manager_id": user["id"]}).to_list(200)
     elif user["role"] in ("hr", "admin"):
         docs = await db.users.find().to_list(500)
-    else:
-        docs = []
     return [serialize(d) for d in docs]
 
 # ---------------------------------------------------------------------------

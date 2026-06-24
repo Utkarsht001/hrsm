@@ -89,7 +89,7 @@ export default function TrainingPage() {
               {(selected.content || []).map((c: any, i: number) => {
                 const Icon = ICONS[c.type] || FileIcon;
                 return (
-                  <div key={i} className="card p-3" data-testid={`content-${i}`}>
+                  <div key={`${c.title}-${c.type}`} className="card p-3" data-testid={`content-${i}`}>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <Icon size={16} className="text-[color:var(--teal-700)]" />
